@@ -1,4 +1,6 @@
-import { Link } from "wouter";
+"use client";
+
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, BookOpen, Target, TrendingUp, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,9 +25,9 @@ export default function Landing() {
                  <Button className="font-semibold">Go to Dashboard</Button>
                </Link>
             ) : (
-              <a href="/api/login">
+              <Link href="/login">
                 <Button className="font-semibold">Student Login</Button>
-              </a>
+              </Link>
             )}
           </div>
         </div>
@@ -48,16 +50,16 @@ export default function Landing() {
           </h1>
           
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed animate-in fade-in slide-in-from-bottom-12 duration-700 delay-100">
-            Track your syllabus, manage backlog, schedule revisions, and analyze mock tests in one beautiful dashboard.
+            Track your syllabus, manage backlog, schedule revisions, and analyze tests in one beautiful dashboard.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom-16 duration-700 delay-200">
-            <a href="/api/login">
+            <Link href="/login">
               <Button size="lg" className="h-14 px-8 rounded-2xl text-lg font-semibold shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 transition-all">
                 Start Tracking Free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-            </a>
+            </Link>
             <Button variant="outline" size="lg" className="h-14 px-8 rounded-2xl text-lg font-semibold bg-white/50 border-2">
               View Features
             </Button>
@@ -95,7 +97,7 @@ export default function Landing() {
               </div>
               <h3 className="text-xl font-bold font-display mb-3">Score Analytics</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Visualize your mock test performance. Identify patterns and weak subjects with intuitive charts.
+                Visualize your test performance. Identify patterns and weak subjects with intuitive charts.
               </p>
             </div>
           </div>

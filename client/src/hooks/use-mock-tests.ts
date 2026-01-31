@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@shared/routes";
+import { api, buildUrl } from "@shared/routes";
 import { z } from "zod";
 
 export function useMockTests() {
@@ -27,6 +27,29 @@ export function useCreateMockTest() {
       });
       if (!res.ok) throw new Error("Failed to add mock test");
       return api.mockTests.create.responses[201].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.mockTests.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.dashboard.stats.path] });
+    },
+  });
+}
+
+type UpdateMockTestInput = z.infer<typeof api.mockTests.update.input>;
+
+export function useUpdateMockTest(testId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: UpdateMockTestInput) => {
+      const path = buildUrl(api.mockTests.update.path, { id: testId });
+      const res = await fetch(path, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to update mock test");
+      return api.mockTests.update.responses[200].parse(await res.json());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.mockTests.list.path] });

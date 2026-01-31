@@ -104,7 +104,7 @@ export default function Dashboard() {
           <div>
             <h3 className="text-xl font-bold font-display">Ready to study?</h3>
             <p className="text-muted-foreground mt-2 max-w-xs mx-auto">
-              Log a new study session or take a mock test to keep your streak alive.
+              Log a new study session or add a test to keep your streak alive.
             </p>
           </div>
           <div className="flex gap-4">

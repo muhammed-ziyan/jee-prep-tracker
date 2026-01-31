@@ -1,21 +1,13 @@
-import { z } from 'zod';
-import { 
-  insertUserTopicProgressSchema, 
-  insertStudySessionSchema, 
-  insertRevisionScheduleSchema, 
-  insertBacklogItemSchema, 
-  insertMockTestSchema, 
+import { z } from "zod";
+import {
+  insertUserTopicProgressSchema,
+  insertStudySessionSchema,
+  insertRevisionScheduleSchema,
+  insertBacklogItemSchema,
+  insertMockTestSchema,
   insertMockTestSubjectSchema,
-  subjects,
-  units,
-  topics,
-  userTopicProgress,
-  studySessions,
-  revisionSchedules,
-  backlogItems,
-  mockTests,
-  mockTestSubjects
-} from './schema';
+} from "./schema";
+import type { UserTopicProgress, StudySession, RevisionSchedule, BacklogItem, MockTest, Topic, Subject } from "./types";
 
 export const errorSchemas = {
   validation: z.object({
@@ -33,38 +25,43 @@ export const errorSchemas = {
 export const api = {
   syllabus: {
     list: {
-      method: 'GET' as const,
-      path: '/api/syllabus',
+      method: "GET" as const,
+      path: "/api/syllabus",
       responses: {
-        200: z.array(z.custom<any>()), // SubjectWithUnits type, hard to express in Zod perfectly without recursion
+        200: z.array(z.custom<any>()),
       },
     },
     getProgress: {
-      method: 'GET' as const,
-      path: '/api/syllabus/progress',
+      method: "GET" as const,
+      path: "/api/syllabus/progress",
       responses: {
-        200: z.array(z.custom<typeof userTopicProgress.$inferSelect>()),
+        200: z.array(z.custom<UserTopicProgress>()),
       },
     },
     updateProgress: {
-      method: 'POST' as const,
-      path: '/api/syllabus/progress',
-      input: insertUserTopicProgressSchema.pick({ topicId: true, status: true, confidence: true, notes: true }).partial({ status: true, confidence: true, notes: true }).required({ topicId: true }),
+      method: "POST" as const,
+      path: "/api/syllabus/progress",
+      input: insertUserTopicProgressSchema
+        .pick({ topicId: true, status: true, confidence: true, notes: true })
+        .partial({ status: true, confidence: true, notes: true })
+        .required({ topicId: true }),
       responses: {
-        200: z.custom<typeof userTopicProgress.$inferSelect>(),
+        200: z.custom<UserTopicProgress>(),
         400: errorSchemas.validation,
       },
-    }
+    },
   },
   dashboard: {
     stats: {
-      method: 'GET' as const,
-      path: '/api/dashboard/stats',
+      method: "GET" as const,
+      path: "/api/dashboard/stats",
       responses: {
         200: z.object({
           totalStudyHours: z.number(),
-          questionsSolved: z.number(), // Placeholder as we don't have a questions table, maybe derived from mock tests?
-          syllabusCompletion: z.array(z.object({ subjectId: z.number(), subjectName: z.string(), percentage: z.number() })),
+          questionsSolved: z.number(),
+          syllabusCompletion: z.array(
+            z.object({ subjectId: z.number(), subjectName: z.string(), percentage: z.number() })
+          ),
           revisionDue: z.number(),
           backlogCount: z.number(),
         }),
@@ -73,101 +70,114 @@ export const api = {
   },
   studySessions: {
     list: {
-      method: 'GET' as const,
-      path: '/api/study-sessions',
+      method: "GET" as const,
+      path: "/api/study-sessions",
       responses: {
-        200: z.array(z.custom<typeof studySessions.$inferSelect>()),
+        200: z.array(z.custom<StudySession>()),
       },
     },
     create: {
-      method: 'POST' as const,
-      path: '/api/study-sessions',
-      input: insertStudySessionSchema.omit({ userId: true, id: true, createdAt: true }),
+      method: "POST" as const,
+      path: "/api/study-sessions",
+      input: insertStudySessionSchema.omit({ userId: true }).partial(),
       responses: {
-        201: z.custom<typeof studySessions.$inferSelect>(),
+        201: z.custom<StudySession>(),
         400: errorSchemas.validation,
       },
     },
   },
   revision: {
     list: {
-      method: 'GET' as const,
-      path: '/api/revision',
+      method: "GET" as const,
+      path: "/api/revision",
       responses: {
-        200: z.array(z.custom<typeof revisionSchedules.$inferSelect & { topic: typeof topics.$inferSelect }>()),
+        200: z.array(z.custom<RevisionSchedule & { topic: Topic }>()),
       },
     },
     create: {
-      method: 'POST' as const,
-      path: '/api/revision',
-      input: insertRevisionScheduleSchema.omit({ userId: true, id: true, completedAt: true }),
+      method: "POST" as const,
+      path: "/api/revision",
+      input: insertRevisionScheduleSchema.omit({ userId: true }).partial(),
       responses: {
-        201: z.custom<typeof revisionSchedules.$inferSelect>(),
+        201: z.custom<RevisionSchedule>(),
         400: errorSchemas.validation,
       },
     },
     markComplete: {
-      method: 'PATCH' as const,
-      path: '/api/revision/:id/complete',
+      method: "PATCH" as const,
+      path: "/api/revision/:id/complete",
       responses: {
-        200: z.custom<typeof revisionSchedules.$inferSelect>(),
+        200: z.custom<RevisionSchedule>(),
         404: errorSchemas.notFound,
       },
-    }
+    },
   },
   backlog: {
     list: {
-      method: 'GET' as const,
-      path: '/api/backlog',
+      method: "GET" as const,
+      path: "/api/backlog",
       responses: {
-        200: z.array(z.custom<typeof backlogItems.$inferSelect>()),
+        200: z.array(z.custom<BacklogItem>()),
       },
     },
     create: {
-      method: 'POST' as const,
-      path: '/api/backlog',
-      input: insertBacklogItemSchema.omit({ userId: true, id: true, createdAt: true, isCompleted: true }),
+      method: "POST" as const,
+      path: "/api/backlog",
+      input: insertBacklogItemSchema.omit({ userId: true }).partial(),
       responses: {
-        201: z.custom<typeof backlogItems.$inferSelect>(),
+        201: z.custom<BacklogItem>(),
         400: errorSchemas.validation,
       },
     },
     update: {
-      method: 'PATCH' as const,
-      path: '/api/backlog/:id',
+      method: "PATCH" as const,
+      path: "/api/backlog/:id",
       input: insertBacklogItemSchema.partial(),
       responses: {
-        200: z.custom<typeof backlogItems.$inferSelect>(),
+        200: z.custom<BacklogItem>(),
         404: errorSchemas.notFound,
       },
     },
     delete: {
-      method: 'DELETE' as const,
-      path: '/api/backlog/:id',
+      method: "DELETE" as const,
+      path: "/api/backlog/:id",
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,
       },
-    }
+    },
   },
   mockTests: {
     list: {
-      method: 'GET' as const,
-      path: '/api/mock-tests',
+      method: "GET" as const,
+      path: "/api/mock-tests",
       responses: {
-        200: z.array(z.custom<any>()), // MockTestWithSubjects
+        200: z.array(z.custom<any>()),
       },
     },
     create: {
-      method: 'POST' as const,
-      path: '/api/mock-tests',
+      method: "POST" as const,
+      path: "/api/mock-tests",
       input: z.object({
-        test: insertMockTestSchema.omit({ userId: true, id: true }),
-        subjects: z.array(insertMockTestSubjectSchema.omit({ id: true, mockTestId: true })),
+        test: insertMockTestSchema.omit({ userId: true }).partial(),
+        subjects: z.array(insertMockTestSubjectSchema.omit({ mockTestId: true }).partial()),
       }),
       responses: {
         201: z.custom<any>(),
         400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: "PATCH" as const,
+      path: "/api/mock-tests/:id",
+      input: z.object({
+        test: insertMockTestSchema.omit({ userId: true }).partial(),
+        subjects: z.array(insertMockTestSubjectSchema.omit({ mockTestId: true }).partial()),
+      }),
+      responses: {
+        200: z.custom<any>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
       },
     },
   },

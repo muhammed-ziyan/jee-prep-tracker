@@ -1,6 +1,9 @@
+"use client";
+
 import { ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Link, useLocation } from "wouter";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -26,12 +29,12 @@ const navItems = [
   { label: "Syllabus", href: "/syllabus", icon: BookOpen },
   { label: "Revision", href: "/revision", icon: CalendarClock },
   { label: "Backlog", href: "/backlog", icon: ListTodo },
-  { label: "Mock Tests", href: "/mock-tests", icon: GraduationCap },
+  { label: "Tests", href: "/mock-tests", icon: GraduationCap },
 ];
 
 export function Layout({ children }: LayoutProps) {
   const { user, logout, isLoggingOut, isLoading } = useAuth();
-  const [location] = useLocation();
+  const pathname = usePathname();
   const isMobile = useIsMobile();
 
   if (isLoading) {
@@ -60,7 +63,7 @@ export function Layout({ children }: LayoutProps) {
       
       <nav className="flex-1 px-4 space-y-2">
         {navItems.map((item) => {
-          const isActive = location === item.href;
+          const isActive = pathname === item.href;
           return (
             <Link key={item.href} href={item.href} className={`
               flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
@@ -138,7 +141,7 @@ export function Layout({ children }: LayoutProps) {
         {/* Mobile Bottom Nav */}
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30 px-6 py-2 flex justify-between items-center safe-area-pb">
           {navItems.slice(0, 4).map((item) => {
-            const isActive = location === item.href;
+            const isActive = pathname === item.href;
             return (
               <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 p-2">
                  <div className={`p-1.5 rounded-full transition-colors ${isActive ? "bg-primary/10" : "bg-transparent"}`}>
@@ -151,11 +154,11 @@ export function Layout({ children }: LayoutProps) {
             );
           })}
           <Link href="/mock-tests" className="flex flex-col items-center gap-1 p-2">
-             <div className={`p-1.5 rounded-full transition-colors ${location === "/mock-tests" ? "bg-primary/10" : "bg-transparent"}`}>
-                <GraduationCap className={`h-5 w-5 ${location === "/mock-tests" ? "text-primary" : "text-muted-foreground"}`} />
+             <div className={`p-1.5 rounded-full transition-colors ${pathname === "/mock-tests" ? "bg-primary/10" : "bg-transparent"}`}>
+                <GraduationCap className={`h-5 w-5 ${pathname === "/mock-tests" ? "text-primary" : "text-muted-foreground"}`} />
              </div>
-             <span className={`text-[10px] font-medium ${location === "/mock-tests" ? "text-primary" : "text-muted-foreground"}`}>
-               Mocks
+             <span className={`text-[10px] font-medium ${pathname === "/mock-tests" ? "text-primary" : "text-muted-foreground"}`}>
+               Tests
              </span>
           </Link>
         </div>
