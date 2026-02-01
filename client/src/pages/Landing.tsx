@@ -15,9 +15,9 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold font-display text-xl">
-              J
+              S
             </div>
-            <span className="font-display font-bold text-xl tracking-tight">JEE Prep</span>
+            <span className="font-display font-bold text-xl tracking-tight">Syllatra</span>
           </div>
           <div className="flex items-center gap-4">
             {user ? (
@@ -107,7 +107,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="bg-background border-t border-border py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-muted-foreground">
-          <p>© 2025 JEE Prep Tracker. Built for champions.</p>
+          <p>© 2025 Syllatra. Built for champions.</p>
         </div>
       </footer>
     </div>

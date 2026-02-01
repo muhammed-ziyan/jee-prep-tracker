@@ -11,9 +11,10 @@ import {
   ListTodo, 
   GraduationCap, 
   LogOut,
-  User,
+  Shield,
   Loader2
 } from "lucide-react";
+import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -34,6 +35,7 @@ const navItems = [
 
 export function Layout({ children }: LayoutProps) {
   const { user, logout, isLoggingOut, isLoading } = useAuth();
+  const { isAdmin } = useAdmin();
   const pathname = usePathname();
   const isMobile = useIsMobile();
 
@@ -57,7 +59,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="p-6">
         <h1 className="text-2xl font-display font-bold text-primary flex items-center gap-2">
           <GraduationCap className="h-8 w-8" />
-          JEE Prep
+          Syllatra
         </h1>
       </div>
       
@@ -77,6 +79,19 @@ export function Layout({ children }: LayoutProps) {
             </Link>
           );
         })}
+        {isAdmin && (
+          <Link
+            href="/admin/users"
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+              pathname.startsWith("/admin")
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 font-medium"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            <Shield className="h-5 w-5" />
+            Admin
+          </Link>
+        )}
       </nav>
 
       <div className="p-4 border-t border-border">
@@ -118,7 +133,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="lg:hidden flex items-center justify-between p-4 bg-background border-b border-border sticky top-0 z-30">
           <div className="flex items-center gap-2 font-display font-bold text-xl text-primary">
             <GraduationCap className="h-6 w-6" />
-            JEE Prep
+            Syllatra
           </div>
           <Sheet>
             <SheetTrigger asChild>

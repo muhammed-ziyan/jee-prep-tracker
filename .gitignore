@@ -24,10 +24,11 @@ yarn-error.log*
 pnpm-debug.log*
 *.log
 
-# OS
+# OS (nul is Windows reserved device name)
 .DS_Store
 Thumbs.db
 Desktop.ini
+nul
 
 # IDE & editors
 .idea

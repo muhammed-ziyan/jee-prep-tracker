@@ -53,7 +53,7 @@ export default function SignupPage() {
         <div className="flex flex-col items-center gap-2">
           <div className="flex items-center gap-2 font-display font-bold text-2xl text-primary">
             <GraduationCap className="h-8 w-8" />
-            JEE Prep
+            Syllatra
           </div>
           <p className="text-muted-foreground text-sm">Create your account</p>
         </div>

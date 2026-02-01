@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "JEE Prep Tracker",
+  title: "Syllatra",
   description: "Track your JEE preparation progress",
 };
 

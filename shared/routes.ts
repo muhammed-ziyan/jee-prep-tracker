@@ -64,6 +64,12 @@ export const api = {
           ),
           revisionDue: z.number(),
           backlogCount: z.number(),
+          examDates: z.array(
+            z.object({ id: z.number(), name: z.string(), examDate: z.string(), daysRemaining: z.number() })
+          ),
+          motivationalQuote: z
+            .object({ id: z.number(), quote: z.string(), author: z.string().nullable() })
+            .nullable(),
         }),
       },
     },

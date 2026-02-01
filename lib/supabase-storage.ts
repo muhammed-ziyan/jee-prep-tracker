@@ -92,21 +92,66 @@ export async function updateTopicProgress(
   return toCamel<UserTopicProgress>(data);
 }
 
+export type ExamDateForDashboard = { id: number; name: string; examDate: string; daysRemaining: number };
+
+export type MotivationalQuoteForDashboard = { id: number; quote: string; author: string | null };
+
+export async function getActiveMotivationalQuotes(): Promise<MotivationalQuoteForDashboard[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("motivational_quotes")
+    .select("id, quote, author")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
+  if (error) throw error;
+  return (data || []).map((r) => ({
+    id: r.id,
+    quote: r.quote,
+    author: r.author ?? null,
+  }));
+}
+
+export async function getExamDates(): Promise<ExamDateForDashboard[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("exam_dates")
+    .select("id, name, exam_date")
+    .order("display_order", { ascending: true })
+    .order("exam_date", { ascending: true });
+  if (error) throw error;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return (data || []).map((r) => {
+    const examDate = (r.exam_date as string).slice(0, 10);
+    const d = new Date(examDate);
+    d.setHours(0, 0, 0, 0);
+    const diffMs = d.getTime() - today.getTime();
+    const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return { id: r.id, name: r.name, examDate, daysRemaining };
+  });
+}
+
 export async function getDashboardStats(userId: string): Promise<{
   totalStudyHours: number;
   questionsSolved: number;
   syllabusCompletion: { subjectId: number; subjectName: string; percentage: number }[];
   revisionDue: number;
   backlogCount: number;
+  examDates: ExamDateForDashboard[];
+  motivationalQuote: MotivationalQuoteForDashboard | null;
 }> {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [sessionsRes, subjectsRes, revisionRes, backlogRes] = await Promise.all([
+  const [sessionsRes, subjectsRes, revisionRes, backlogRes, examDates, activeQuotes] = await Promise.all([
     supabase.from("study_sessions").select("duration_minutes").eq("user_id", userId),
     supabase.from("subjects").select("id, name"),
     supabase.from("revision_schedules").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "not_started").lte("scheduled_date", today),
     supabase.from("backlog_items").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("is_completed", false),
+    getExamDates(),
+    getActiveMotivationalQuotes(),
   ]);
+  const motivationalQuote =
+    activeQuotes.length > 0 ? activeQuotes[Math.floor(Math.random() * activeQuotes.length)]! : null;
   const totalMinutes = (sessionsRes.data || []).reduce((s, r) => s + (r.duration_minutes || 0), 0);
   const syllabusCompletion: { subjectId: number; subjectName: string; percentage: number }[] = [];
   for (const sub of subjectsRes.data || []) {
@@ -130,6 +175,8 @@ export async function getDashboardStats(userId: string): Promise<{
     syllabusCompletion,
     revisionDue: revisionRes.count ?? 0,
     backlogCount: backlogRes.count ?? 0,
+    examDates: examDates ?? [],
+    motivationalQuote,
   };
 }
 

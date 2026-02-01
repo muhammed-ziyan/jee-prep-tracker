@@ -32,10 +32,12 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       const supabase = createClient();
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
       await supabase.auth.signOut();
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/auth/user"], null);
+      queryClient.removeQueries({ queryKey: ["/api/admin/me"] });
       window.location.href = "/";
     },
   });

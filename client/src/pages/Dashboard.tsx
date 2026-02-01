@@ -6,7 +6,9 @@ import {
   CalendarClock, 
   ListTodo, 
   BookOpen, 
-  AlertCircle
+  AlertCircle,
+  CalendarDays,
+  Quote
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,6 +74,52 @@ export default function Dashboard() {
           colorClass="text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-300"
         />
       </div>
+
+      {((stats?.examDates?.length ?? 0) > 0 || stats?.motivationalQuote) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {stats?.examDates && stats.examDates.length > 0 && (
+            <div className="glass-card p-6 rounded-2xl">
+              <h3 className="text-lg font-bold font-display mb-4 flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                Upcoming exams
+              </h3>
+              <div className="flex flex-wrap gap-4">
+                {stats.examDates.map((exam) => (
+                  <div
+                    key={exam.id}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 border border-border min-w-[180px]"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">{exam.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {exam.daysRemaining === 0
+                          ? "Today"
+                          : exam.daysRemaining < 0
+                            ? `${Math.abs(exam.daysRemaining)} day(s) ago`
+                            : `${exam.daysRemaining} day${exam.daysRemaining === 1 ? "" : "s"} left`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {stats?.motivationalQuote && (
+            <div className="glass-card p-6 rounded-2xl flex flex-col justify-center">
+              <h3 className="text-lg font-bold font-display mb-3 flex items-center gap-2">
+                <Quote className="h-5 w-5 text-primary" />
+                Motivation
+              </h3>
+              <blockquote className="text-foreground italic text-base leading-relaxed">
+                &ldquo;{stats.motivationalQuote.quote}&rdquo;
+              </blockquote>
+              {stats.motivationalQuote.author && (
+                <p className="text-sm text-muted-foreground mt-3">— {stats.motivationalQuote.author}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Syllabus Completion Chart */}
