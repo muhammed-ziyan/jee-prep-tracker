@@ -26,7 +26,7 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { label: "Dashboard", href: "/", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Syllabus", href: "/syllabus", icon: BookOpen },
   { label: "Revision", href: "/revision", icon: CalendarClock },
   { label: "Backlog", href: "/backlog", icon: ListTodo },

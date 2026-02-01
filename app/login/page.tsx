@@ -11,7 +11,7 @@ import { GraduationCap, Eye, EyeOff } from "lucide-react";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/syllabus";
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const errorParam = searchParams.get("error");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
