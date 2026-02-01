@@ -140,7 +140,7 @@ export default function Revision() {
 
   if (isLoading) return <div>Loading...</div>;
 
-  type ScheduleItem = (typeof schedule)[number];
+  type ScheduleItem = NonNullable<typeof schedule>[number];
   const rawSchedule = schedule ?? [];
 
   // Sort: incomplete first (by date asc), then completed (by date asc). So "completed or later dates" listed below.
