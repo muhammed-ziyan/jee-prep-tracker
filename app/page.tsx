@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/get-session-user";
+import { getSessionUser } from "lib/get-session-user";
 
 export default async function HomePage() {
   const user = await getSessionUser();
