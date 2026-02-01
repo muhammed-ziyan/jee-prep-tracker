@@ -117,6 +117,36 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    createBatch: {
+      method: "POST" as const,
+      path: "/api/revision/batch",
+      input: z.object({
+        topicIds: z.array(z.number()).min(1),
+        scheduledDate: z.string(),
+      }),
+      responses: {
+        201: z.array(z.custom<RevisionSchedule>()),
+        400: errorSchemas.validation,
+      },
+    },
+    deleteSession: {
+      method: "DELETE" as const,
+      path: "/api/revision/session",
+      input: z.object({ scheduledDate: z.string() }),
+      responses: {
+        200: z.object({ deleted: z.number() }),
+        400: errorSchemas.validation,
+      },
+    },
+    completeSession: {
+      method: "PATCH" as const,
+      path: "/api/revision/session/complete",
+      input: z.object({ scheduledDate: z.string() }),
+      responses: {
+        200: z.object({ completed: z.number() }),
+        400: errorSchemas.validation,
+      },
+    },
   },
   backlog: {
     list: {

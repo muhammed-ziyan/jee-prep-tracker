@@ -223,6 +223,31 @@ export async function completeRevision(id: number): Promise<RevisionSchedule | u
   return toCamel<RevisionSchedule>(data);
 }
 
+export async function completeRevisionSession(userId: string, scheduledDate: string): Promise<number> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("revision_schedules")
+    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("scheduled_date", scheduledDate)
+    .neq("status", "completed")
+    .select("id");
+  if (error) throw error;
+  return (data?.length ?? 0);
+}
+
+export async function deleteRevisionSchedulesByDate(userId: string, scheduledDate: string): Promise<number> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("revision_schedules")
+    .delete()
+    .eq("user_id", userId)
+    .eq("scheduled_date", scheduledDate)
+    .select("id");
+  if (error) throw error;
+  return (data?.length ?? 0);
+}
+
 export async function getBacklogItems(userId: string): Promise<BacklogItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("backlog_items").select("*").eq("user_id", userId).order("created_at", { ascending: false });

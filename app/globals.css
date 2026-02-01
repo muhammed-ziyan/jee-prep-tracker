@@ -40,6 +40,11 @@
   --chart-physics: 262 83% 58%;
   --chart-chemistry: 12 76% 61%;
   --chart-maths: 173 58% 39%;
+
+  /* Toast – solid opaque backgrounds */
+  --toast-success-bg: hsl(173 45% 94%);
+  --toast-warning-bg: hsl(12 60% 94%);
+  --toast-destructive-bg: hsl(0 70% 96%);
 }
 
 .dark {
@@ -67,6 +72,10 @@
   
   --popover: 224 71% 8%;
   --popover-foreground: 210 40% 98%;
+
+  --toast-success-bg: hsl(173 35% 16%);
+  --toast-warning-bg: hsl(12 45% 16%);
+  --toast-destructive-bg: hsl(0 45% 16%);
 }
 
 @layer base {

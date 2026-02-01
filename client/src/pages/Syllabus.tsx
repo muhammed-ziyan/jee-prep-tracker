@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, CheckCircle2, Circle, Filter } from "lucide-react";
+import { Loader2, CheckCircle2, Circle, Filter, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SubjectWithUnits, UserTopicProgress, Topic } from "@shared/schema";
 
@@ -35,6 +35,7 @@ export default function Syllabus() {
   });
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>("all");
+  const [completingUnitId, setCompletingUnitId] = useState<number | null>(null);
 
   const subjects = (syllabus || []) as SubjectWithUnits[];
 
@@ -60,9 +61,9 @@ export default function Syllabus() {
     const currentProgress = getTopicProgress(topicId);
     setSelectedTopic({ id: topicId, name: topicName });
     setEditForm({
-      status: currentProgress?.status || "not_started",
-      confidence: currentProgress?.confidence || "medium",
-      notes: currentProgress?.notes || ""
+      status: currentProgress?.status ?? "completed",
+      confidence: currentProgress?.confidence ?? "high",
+      notes: currentProgress?.notes ?? ""
     });
   };
 
@@ -85,6 +86,42 @@ export default function Syllabus() {
         }
       }
     );
+  };
+
+  const handleUnitToggle = async (unit: { id: number; topics: Topic[] }) => {
+    if (unit.topics.length === 0) return;
+    const isFullyCompleted = unit.topics.every(
+      (t) => getTopicProgress(t.id)?.status === "completed"
+    );
+    setCompletingUnitId(unit.id);
+    try {
+      if (isFullyCompleted) {
+        await Promise.all(
+          unit.topics.map((topic) =>
+            updateProgress.mutateAsync({
+              topicId: topic.id,
+              status: "not_started"
+            })
+          )
+        );
+      } else {
+        await Promise.all(
+          unit.topics.map((topic) =>
+            updateProgress.mutateAsync({
+              topicId: topic.id,
+              status: "completed",
+              confidence: "high"
+            })
+          )
+        );
+      }
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: [api.syllabus.getProgress.path] }),
+        queryClient.refetchQueries({ queryKey: [api.dashboard.stats.path] })
+      ]);
+    } finally {
+      setCompletingUnitId(null);
+    }
   };
 
   return (
@@ -158,6 +195,8 @@ export default function Syllabus() {
                   const unitTotal = unit.topics.length;
                   const unitDone = unit.topics.filter((t) => getTopicProgress(t.id)?.status === "completed").length;
                   const unitPct = unitTotal ? Math.round((unitDone / unitTotal) * 100) : 0;
+                  const isUnitComplete = unitTotal > 0 && unitDone === unitTotal;
+                  const isDisabled = completingUnitId === unit.id || unitTotal === 0;
 
                   return (
                     <AccordionItem key={unit.id} value={`unit-${unit.id}`} className="border-b border-border/50 px-6 last:border-0">
@@ -165,10 +204,43 @@ export default function Syllabus() {
                         <div className="flex flex-col gap-3 text-left w-full pr-4">
                           <span className="font-semibold text-lg">{unit.name}</span>
                           {/* Unit-level progress bar */}
-                          <div className="flex items-center gap-3">
-                            <Progress value={unitPct} className="h-2 flex-1 rounded-full max-w-[240px]" />
+                          <div className="flex flex-wrap items-center gap-3">
+                            <Progress value={unitPct} className="h-2 flex-1 rounded-full max-w-[240px] min-w-0" />
                             <span className="text-sm text-muted-foreground whitespace-nowrap">
                               {unitDone}/{unitTotal} done
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              aria-pressed={isUnitComplete}
+                              className={cn(
+                                "inline-flex items-center justify-center gap-2 min-h-8 rounded-xl px-3 text-xs font-medium shrink-0",
+                                "cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                                "transition-colors",
+                                isDisabled && "pointer-events-none opacity-50",
+                                isUnitComplete
+                                  ? "bg-primary text-primary-foreground border border-primary-border"
+                                  : "border bg-secondary text-secondary-foreground border-secondary-border"
+                              )}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                if (isDisabled) return;
+                                handleUnitToggle(unit);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key !== "Enter" && e.key !== " ") return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (isDisabled) return;
+                                handleUnitToggle(unit);
+                              }}
+                            >
+                              {completingUnitId === unit.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <CheckCheck className="h-4 w-4" />
+                              )}
                             </span>
                           </div>
                         </div>

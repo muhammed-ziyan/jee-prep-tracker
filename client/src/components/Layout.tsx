@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { useRevisionNotifications } from "@/hooks/use-revision-notifications";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -17,9 +18,15 @@ import {
 import { useAdmin } from "@/hooks/use-admin";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { User, LogOut as LogOutIcon } from "lucide-react";
 
 interface LayoutProps {
   children: ReactNode;
@@ -37,7 +44,6 @@ export function Layout({ children }: LayoutProps) {
   const { user, logout, isLoggingOut, isLoading } = useAuth();
   const { isAdmin } = useAdmin();
   const pathname = usePathname();
-  const isMobile = useIsMobile();
 
   if (isLoading) {
     return (
@@ -54,6 +60,35 @@ export function Layout({ children }: LayoutProps) {
 
   if (!user) return <>{children}</>;
 
+  return (
+    <RevisionNotificationTrigger>
+      <LayoutContent user={user} pathname={pathname} isAdmin={isAdmin} logout={logout} isLoggingOut={isLoggingOut}>
+        {children}
+      </LayoutContent>
+    </RevisionNotificationTrigger>
+  );
+}
+
+function RevisionNotificationTrigger({ children }: { children: ReactNode }) {
+  useRevisionNotifications();
+  return <>{children}</>;
+}
+
+function LayoutContent({
+  user,
+  pathname,
+  isAdmin,
+  logout,
+  isLoggingOut,
+  children,
+}: {
+  user: NonNullable<ReturnType<typeof useAuth>["user"]>;
+  pathname: string;
+  isAdmin: boolean;
+  logout: () => void;
+  isLoggingOut: boolean;
+  children: ReactNode;
+}) {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-background border-r border-border">
       <div className="p-6">
@@ -95,18 +130,21 @@ export function Layout({ children }: LayoutProps) {
       </nav>
 
       <div className="p-4 border-t border-border">
-        <div className="flex items-center gap-3 mb-4 px-2">
-          <Avatar className="h-10 w-10 border border-border">
+        <Link
+          href="/profile"
+          className="flex items-center gap-3 mb-4 px-2 rounded-xl py-1.5 -mx-1 hover:bg-muted transition-colors cursor-pointer"
+        >
+          <Avatar className="h-10 w-10 border border-border shrink-0">
             <AvatarImage src={user.profileImageUrl || undefined} />
             <AvatarFallback className="bg-primary/10 text-primary font-bold">
               {user.firstName?.[0] || "U"}
             </AvatarFallback>
           </Avatar>
-          <div className="overflow-hidden">
+          <div className="overflow-hidden min-w-0">
             <p className="text-sm font-medium truncate">{user.firstName || "Student"}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
-        </div>
+        </Link>
         <Button 
           variant="outline" 
           className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/5 border-destructive/20"
@@ -135,16 +173,41 @@ export function Layout({ children }: LayoutProps) {
             <GraduationCap className="h-6 w-6" />
             Syllatra
           </div>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Avatar className="h-8 w-8 border border-border">
+                  <AvatarImage src={user.profileImageUrl || undefined} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                    {user.firstName?.[0] || "U"}
+                  </AvatarFallback>
+                </Avatar>
               </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-72">
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">{user.firstName || "Student"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+                  <User className="h-4 w-4" />
+                  Profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                onClick={() => logout()}
+                disabled={isLoggingOut}
+              >
+                <LogOutIcon className="h-4 w-4 mr-2" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 lg:pb-8">

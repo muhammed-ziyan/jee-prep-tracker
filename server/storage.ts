@@ -11,6 +11,8 @@ export const storage = {
   getRevisionSchedule: supabaseStorage.getRevisionSchedule,
   createRevisionSchedule: supabaseStorage.createRevisionSchedule,
   completeRevision: supabaseStorage.completeRevision,
+  completeRevisionSession: supabaseStorage.completeRevisionSession,
+  deleteRevisionSchedulesByDate: supabaseStorage.deleteRevisionSchedulesByDate,
   getBacklogItems: supabaseStorage.getBacklogItems,
   createBacklogItem: supabaseStorage.createBacklogItem,
   updateBacklogItem: supabaseStorage.updateBacklogItem,

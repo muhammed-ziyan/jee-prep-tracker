@@ -150,18 +150,34 @@ export default function MockTests() {
 
   const subjects = (syllabus || []) as SubjectWithUnits[];
 
+  const divideScoreEqually = (total: number, n: number): number[] => {
+    if (n <= 0) return [];
+    const base = Math.floor(total / n);
+    const remainder = total % n;
+    return Array.from({ length: n }, (_, i) => base + (i < remainder ? 1 : 0));
+  };
+
   const toggleSubject = (subjectId: number) => {
     setNewTest((prev) => {
       const selected = prev.selectedSubjectIds.includes(subjectId)
         ? prev.selectedSubjectIds.filter((id) => id !== subjectId)
         : [...prev.selectedSubjectIds, subjectId];
+      const n = selected.length;
       const perSubject = { ...prev.perSubject };
-      if (!selected.includes(subjectId)) delete perSubject[subjectId];
-      else {
-        const n = selected.length;
-        const defaultMax = n === 1 ? prev.maxScore : Math.floor(prev.maxScore / n);
-        perSubject[subjectId] = { ...initialPerSubject(), maxScore: defaultMax };
+      if (n === 0) {
+        selected.forEach((id) => delete perSubject[id]);
+        return { ...prev, selectedSubjectIds: selected, perSubject };
       }
+      if (!selected.includes(subjectId)) delete perSubject[subjectId];
+      const scores = n > 1 ? divideScoreEqually(prev.maxScore, n) : [prev.maxScore];
+      const maxScores = n > 1 ? divideScoreEqually(prev.maxScore, n) : [prev.maxScore];
+      selected.forEach((id, i) => {
+        perSubject[id] = {
+          ...(perSubject[id] ?? initialPerSubject()),
+          maxScore: maxScores[i] ?? 0,
+          score: n > 1 ? (scores[i] ?? 0) : (perSubject[id]?.score ?? 0),
+        };
+      });
       return { ...prev, selectedSubjectIds: selected, perSubject };
     });
   };
@@ -244,6 +260,42 @@ export default function MockTests() {
     }, 0);
   }, [selectedSubjects, newTest.perSubject]);
 
+  const createSumSubjectMax = useMemo(() => {
+    if (selectedSubjects.length <= 1) return newTest.maxScore;
+    return selectedSubjects.reduce((sum, s) => {
+      const ps = newTest.perSubject[s.id] ?? initialPerSubject();
+      return sum + (ps.maxScore ?? 0);
+    }, 0);
+  }, [selectedSubjects, newTest.perSubject, newTest.maxScore]);
+
+  const createValidationFailed = useMemo(() => {
+    if (!newTest.title || newTest.selectedSubjectIds.length === 0) return true;
+    if (totalNetScore > newTest.maxScore) return true;
+    if (selectedSubjects.length > 1) {
+      if (createSumSubjectMax !== newTest.maxScore) return true;
+      const anyZeroMax = selectedSubjects.some(
+        (s) => (newTest.perSubject[s.id] ?? initialPerSubject()).maxScore <= 0
+      );
+      if (anyZeroMax) return true;
+    }
+    const anyNetExceedsMax = selectedSubjects.some((s) => {
+      const ps = newTest.perSubject[s.id] ?? initialPerSubject();
+      const net = ps.score - (ps.negativeMarks ?? 0);
+      const maxForSubject =
+        selectedSubjects.length > 1 ? (ps.maxScore ?? 0) : newTest.maxScore;
+      return maxForSubject > 0 && net > maxForSubject;
+    });
+    return anyNetExceedsMax;
+  }, [
+    newTest.title,
+    newTest.selectedSubjectIds.length,
+    newTest.maxScore,
+    newTest.perSubject,
+    selectedSubjects,
+    totalNetScore,
+    createSumSubjectMax,
+  ]);
+
   const editFormSubjects = useMemo(() => {
     if (!editingTest?.subjects?.length || !editForm) return [];
     return editingTest.subjects
@@ -269,6 +321,36 @@ export default function MockTests() {
     );
   }, [editForm]);
 
+  const editFormSumSubjectMax = useMemo(() => {
+    if (!editForm || !editFormSubjects.length) return 0;
+    const isMultiple = editFormSubjects.length > 1;
+    if (!isMultiple) return editForm.maxScore;
+    return editFormSubjects.reduce((sum, s) => {
+      const ps = editForm.perSubject[s.subjectId] ?? initialPerSubject();
+      return sum + (ps.maxScore ?? 0);
+    }, 0);
+  }, [editForm, editFormSubjects]);
+
+  const editValidationFailed = useMemo(() => {
+    if (!editForm || !editForm.title.trim() || !editFormSubjects.length) return true;
+    if (editFormTotalNetScore > editForm.maxScore) return true;
+    if (editFormSubjects.length > 1) {
+      if (editFormSumSubjectMax !== editForm.maxScore) return true;
+      const anyZeroMax = editFormSubjects.some(
+        (s) => (editForm!.perSubject[s.subjectId] ?? initialPerSubject()).maxScore <= 0
+      );
+      if (anyZeroMax) return true;
+    }
+    const anyNetExceedsMax = editFormSubjects.some((s) => {
+      const ps = editForm.perSubject[s.subjectId] ?? initialPerSubject();
+      const net = ps.score - (ps.negativeMarks ?? 0);
+      const maxForSubject =
+        editFormSubjects.length > 1 ? (ps.maxScore ?? 0) : editForm.maxScore;
+      return maxForSubject > 0 && net > maxForSubject;
+    });
+    return anyNetExceedsMax;
+  }, [editForm, editFormSubjects, editFormTotalNetScore, editFormSumSubjectMax]);
+
   const handleEditSubmit = () => {
     if (!editingTest || !editForm) return;
     const isMultipleSubjects = editFormSubjects.length > 1;
@@ -287,10 +369,10 @@ export default function MockTests() {
       return;
     }
     if (isMultipleSubjects) {
-      if (sumSubjectMax > editForm.maxScore) {
+      if (sumSubjectMax !== editForm.maxScore) {
         toast({
           title: "Invalid max scores",
-          description: `Sum of subject max marks (${sumSubjectMax}) cannot exceed test max score (${editForm.maxScore}).`,
+          description: `Sum of subject max marks (${sumSubjectMax}) must equal test max score (${editForm.maxScore}).`,
           variant: "destructive",
         });
         return;
@@ -380,10 +462,10 @@ export default function MockTests() {
     }
 
     if (isMultipleSubjects) {
-      if (sumSubjectMax > newTest.maxScore) {
+      if (sumSubjectMax !== newTest.maxScore) {
         toast({
           title: "Invalid max scores",
-          description: `Sum of subject max marks (${sumSubjectMax}) cannot exceed test max score (${newTest.maxScore}).`,
+          description: `Sum of subject max marks (${sumSubjectMax}) must equal test max score (${newTest.maxScore}).`,
           variant: "destructive",
         });
         return;
@@ -549,12 +631,24 @@ export default function MockTests() {
                       const v = parseInt(e.target.value) || 0;
                       setNewTest((prev) => {
                         const next = { ...prev, maxScore: v };
-                        if (prev.selectedSubjectIds.length === 1) {
+                        const n = prev.selectedSubjectIds.length;
+                        if (n === 0) return next;
+                        if (n === 1) {
                           const sid = prev.selectedSubjectIds[0];
                           next.perSubject = {
                             ...prev.perSubject,
                             [sid]: { ...(prev.perSubject[sid] ?? initialPerSubject()), maxScore: v },
                           };
+                        } else {
+                          const split = divideScoreEqually(v, n);
+                          next.perSubject = { ...prev.perSubject };
+                          prev.selectedSubjectIds.forEach((sid, i) => {
+                            next.perSubject[sid] = {
+                              ...(prev.perSubject[sid] ?? initialPerSubject()),
+                              maxScore: split[i] ?? 0,
+                              score: split[i] ?? 0,
+                            };
+                          });
                         }
                         return next;
                       });
@@ -688,16 +782,17 @@ export default function MockTests() {
                   {totalNetScore > newTest.maxScore && (
                     <p className="text-xs text-destructive">Cannot exceed test max score ({newTest.maxScore})</p>
                   )}
+                  {selectedSubjects.length > 1 && createSumSubjectMax !== newTest.maxScore && (
+                    <p className="text-xs text-destructive">
+                      Sum of subject max marks ({createSumSubjectMax}) must equal test max score ({newTest.maxScore})
+                    </p>
+                  )}
                 </div>
               )}
             </div>
             <Button
               onClick={handleSubmit}
-              disabled={
-                !newTest.title ||
-                newTest.selectedSubjectIds.length === 0 ||
-                createTest.isPending
-              }
+              disabled={createValidationFailed || createTest.isPending}
               className="w-full"
             >
               Save Result
@@ -907,10 +1002,15 @@ export default function MockTests() {
                       Cannot exceed test max score ({editForm.maxScore})
                     </p>
                   )}
+                  {editFormSubjects.length > 1 && editFormSumSubjectMax !== editForm.maxScore && (
+                    <p className="text-xs text-destructive">
+                      Sum of subject max marks ({editFormSumSubjectMax}) must equal test max score ({editForm.maxScore})
+                    </p>
+                  )}
                 </div>
                 <Button
                   onClick={handleEditSubmit}
-                  disabled={!editForm.title || updateTest.isPending}
+                  disabled={editValidationFailed || updateTest.isPending}
                   className="w-full"
                 >
                   Save changes
