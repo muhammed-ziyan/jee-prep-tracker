@@ -23,8 +23,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, BarChart3, Users, Clock } from "lucide-react";
+import { Loader2, BarChart3, Users, Clock, BookOpen } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const defaultFrom = () => {
   const d = new Date();
@@ -101,7 +104,7 @@ export function AdminAnalyticsClient() {
     return list.map((s) => ({ value: s.id, label: s.email ?? s.id }));
   }, [usersData]);
 
-  const defaultTab = tabParam === "report" ? "report" : "overview";
+  const defaultTab = tabParam === "report" ? "report" : tabParam === "syllabus" ? "syllabus" : "overview";
 
   return (
     <div className="space-y-6">
@@ -116,6 +119,7 @@ export function AdminAnalyticsClient() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="report">Report</TabsTrigger>
+          <TabsTrigger value="syllabus">Syllabus Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
@@ -276,7 +280,291 @@ export function AdminAnalyticsClient() {
             )}
           </div>
         </TabsContent>
+
+        <TabsContent value="syllabus" className="space-y-6 mt-6">
+          <SyllabusAnalysisTab studentOptions={studentOptions} />
+        </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function SyllabusAnalysisTab({ studentOptions }: { studentOptions: Array<{ value: string; label: string }> }) {
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [activeSection, setActiveSection] = useState<"overview" | "detail">("overview");
+
+  const { data: overviewData, isLoading: overviewLoading } = useQuery({
+    queryKey: ["/api/admin/analytics/syllabus-overview"],
+    queryFn: () =>
+      fetch("/api/admin/analytics/syllabus-overview", { credentials: "include" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+  });
+
+  const { data: detailData, isLoading: detailLoading } = useQuery({
+    queryKey: ["/api/admin/analytics/syllabus-detail", selectedUserId],
+    queryFn: () =>
+      fetch(`/api/admin/analytics/syllabus-detail?userId=${selectedUserId}`, { credentials: "include" }).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+    enabled: !!selectedUserId && activeSection === "detail",
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button
+          variant={activeSection === "overview" ? "default" : "outline"}
+          onClick={() => setActiveSection("overview")}
+        >
+          Overview
+        </Button>
+        <Button
+          variant={activeSection === "detail" ? "default" : "outline"}
+          onClick={() => setActiveSection("detail")}
+        >
+          Student Detail
+        </Button>
+      </div>
+
+      {activeSection === "overview" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Syllabus Completion Overview</h2>
+            <p className="text-muted-foreground text-sm mb-4">
+              Aggregated completion statistics across all students, broken down by subject and unit.
+            </p>
+            {overviewLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {overviewData?.subjects?.map((subject: {
+                  id: number;
+                  name: string;
+                  color: string;
+                  units: Array<{
+                    id: number;
+                    name: string;
+                    totalTopics: number;
+                    completedTopics: number;
+                    completionPercentage: number;
+                    students: Array<{
+                      userId: string;
+                      email: string | null;
+                      completedTopics: number;
+                      completionPercentage: number;
+                    }>;
+                  }>;
+                }) => (
+                  <Card key={subject.id}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: subject.color }}
+                        />
+                        {subject.name}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Accordion type="single" collapsible className="w-full">
+                        {subject.units.map((unit) => (
+                          <AccordionItem key={unit.id} value={`unit-${unit.id}`}>
+                            <AccordionTrigger className="hover:no-underline">
+                              <div className="flex items-center justify-between w-full pr-4">
+                                <span className="font-medium">{unit.name}</span>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                  <span>{unit.completedTopics} / {unit.totalTopics} topics</span>
+                                  <Badge variant="secondary">{unit.completionPercentage}%</Badge>
+                                </div>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-2 pt-2">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-sm font-medium">Overall Progress:</span>
+                                  <Progress value={unit.completionPercentage} className="flex-1" />
+                                  <span className="text-sm text-muted-foreground">{unit.completionPercentage}%</span>
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {unit.students.length} student(s) tracked
+                                </div>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        ))}
+                      </Accordion>
+                    </CardContent>
+                  </Card>
+                ))}
+                {(!overviewData?.subjects || overviewData.subjects.length === 0) && (
+                  <p className="text-muted-foreground text-sm py-8 text-center">No syllabus data available.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeSection === "detail" && (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Student Syllabus Progress</h2>
+            <p className="text-muted-foreground text-sm mb-4">
+              View detailed syllabus completion for a specific student.
+            </p>
+            <div className="grid gap-2 max-w-md">
+              <Label>Select Student</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a student" />
+                </SelectTrigger>
+                <SelectContent>
+                  {studentOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {!selectedUserId ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Please select a student to view their syllabus progress.</p>
+            </div>
+          ) : detailLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {detailData?.subjects?.map((subject: {
+                id: number;
+                name: string;
+                color: string;
+                completionPercentage: number;
+                units: Array<{
+                  id: number;
+                  name: string;
+                  completionPercentage: number;
+                  topics: Array<{
+                    id: number;
+                    name: string;
+                    order: number;
+                    progress: {
+                      status: "not_started" | "in_progress" | "completed";
+                      confidence: "low" | "medium" | "high" | null;
+                      notes: string | null;
+                      completedAt: string | null;
+                      lastRevisedAt: string | null;
+                    } | null;
+                  }>;
+                }>;
+              }) => (
+                <Card key={subject.id}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-4 h-4 rounded"
+                          style={{ backgroundColor: subject.color }}
+                        />
+                        {subject.name}
+                      </div>
+                      <Badge variant="secondary">{subject.completionPercentage}%</Badge>
+                    </CardTitle>
+                    <div className="pt-2">
+                      <Progress value={subject.completionPercentage} />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Accordion type="single" collapsible className="w-full">
+                      {subject.units.map((unit) => (
+                        <AccordionItem key={unit.id} value={`unit-${unit.id}`}>
+                          <AccordionTrigger className="hover:no-underline">
+                            <div className="flex items-center justify-between w-full pr-4">
+                              <span className="font-medium">{unit.name}</span>
+                              <Badge variant="outline" className="mr-2">
+                                {unit.completionPercentage}%
+                              </Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-2 pt-2">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Progress value={unit.completionPercentage} className="flex-1" />
+                              </div>
+                              <div className="space-y-1">
+                                {unit.topics.map((topic) => {
+                                  const status = topic.progress?.status ?? "not_started";
+                                  const statusColors = {
+                                    completed: "bg-green-500/10 text-green-700 dark:text-green-400",
+                                    in_progress: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400",
+                                    not_started: "bg-gray-500/10 text-gray-700 dark:text-gray-400",
+                                  };
+                                  return (
+                                    <div
+                                      key={topic.id}
+                                      className="flex items-start justify-between p-2 rounded border text-sm"
+                                    >
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <Badge
+                                            variant="outline"
+                                            className={statusColors[status]}
+                                          >
+                                            {status === "completed"
+                                              ? "Completed"
+                                              : status === "in_progress"
+                                              ? "In Progress"
+                                              : "Not Started"}
+                                          </Badge>
+                                          <span>{topic.name}</span>
+                                        </div>
+                                        {topic.progress?.confidence && (
+                                          <div className="text-xs text-muted-foreground mt-1">
+                                            Confidence: {topic.progress.confidence}
+                                          </div>
+                                        )}
+                                        {topic.progress?.completedAt && (
+                                          <div className="text-xs text-muted-foreground mt-1">
+                                            Completed: {new Date(topic.progress.completedAt).toLocaleDateString()}
+                                          </div>
+                                        )}
+                                        {topic.progress?.notes && (
+                                          <div className="text-xs text-muted-foreground mt-1 italic">
+                                            {topic.progress.notes}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              ))}
+              {(!detailData?.subjects || detailData.subjects.length === 0) && (
+                <p className="text-muted-foreground text-sm py-8 text-center">
+                  No syllabus data available for this student.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

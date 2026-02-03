@@ -527,6 +527,322 @@ export async function adminGetAnalyticsStudents(params: {
   return result;
 }
 
+export async function adminGetSyllabusOverview(): Promise<{
+  subjects: Array<{
+    id: number;
+    name: string;
+    color: string;
+    units: Array<{
+      id: number;
+      name: string;
+      totalTopics: number;
+      completedTopics: number;
+      completionPercentage: number;
+      students: Array<{
+        userId: string;
+        email: string | null;
+        completedTopics: number;
+        completionPercentage: number;
+      }>;
+    }>;
+  }>;
+}> {
+  const supabase = createAdminClient();
+  
+  // Get all users
+  const { data: authData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const users = authData?.users ?? [];
+  const userMap = new Map<string, string | null>();
+  for (const u of users) {
+    userMap.set(u.id, u.email ?? null);
+  }
+
+  // Get all subjects with units and topics
+  const syllabus = await adminGetSubjectsWithUnitsAndTopics();
+  
+  // Get all progress data
+  const { data: allProgress, error: progressErr } = await supabase
+    .from("user_topic_progress")
+    .select("user_id, topic_id, status");
+  if (progressErr) throw progressErr;
+  
+  // Build a map of topicId -> userId -> status
+  const progressMap = new Map<number, Map<string, string>>();
+  for (const p of allProgress ?? []) {
+    const topicId = p.topic_id as number;
+    const userId = p.user_id as string;
+    const status = p.status as string;
+    if (!progressMap.has(topicId)) {
+      progressMap.set(topicId, new Map());
+    }
+    progressMap.get(topicId)!.set(userId, status);
+  }
+
+  const result: {
+    subjects: Array<{
+      id: number;
+      name: string;
+      color: string;
+      units: Array<{
+        id: number;
+        name: string;
+        totalTopics: number;
+        completedTopics: number;
+        completionPercentage: number;
+        students: Array<{
+          userId: string;
+          email: string | null;
+          completedTopics: number;
+          completionPercentage: number;
+        }>;
+      }>;
+    }>;
+  } = {
+    subjects: [],
+  };
+
+  for (const subject of syllabus) {
+    const subjectUnits: Array<{
+      id: number;
+      name: string;
+      totalTopics: number;
+      completedTopics: number;
+      completionPercentage: number;
+      students: Array<{
+        userId: string;
+        email: string | null;
+        completedTopics: number;
+        completionPercentage: number;
+      }>;
+    }> = [];
+
+    for (const unit of subject.units) {
+      const totalTopics = unit.topics.length;
+      
+      // Calculate per-student completion
+      const studentStats = new Map<string, { completed: number; total: number }>();
+      
+      // Initialize all students with 0 completed, totalTopics total
+      for (const userId of userMap.keys()) {
+        studentStats.set(userId, { completed: 0, total: totalTopics });
+      }
+      
+      // Process each topic's progress
+      for (const topic of unit.topics) {
+        const topicProgress = progressMap.get(topic.id);
+        if (topicProgress) {
+          for (const [userId, status] of topicProgress.entries()) {
+            if (!studentStats.has(userId)) {
+              studentStats.set(userId, { completed: 0, total: totalTopics });
+            }
+            const stats = studentStats.get(userId)!;
+            if (status === "completed") {
+              stats.completed++;
+            }
+          }
+        }
+      }
+
+      // Calculate aggregated stats
+      let totalCompletedAcrossAllStudents = 0;
+      for (const stats of studentStats.values()) {
+        totalCompletedAcrossAllStudents += stats.completed;
+      }
+
+      const students = Array.from(studentStats.entries()).map(([userId, stats]) => ({
+        userId,
+        email: userMap.get(userId) ?? null,
+        completedTopics: stats.completed,
+        completionPercentage: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+      }));
+
+      const totalPossibleCompletions = totalTopics * users.length;
+      const completionPercentage = totalPossibleCompletions > 0 
+        ? Math.round((totalCompletedAcrossAllStudents / totalPossibleCompletions) * 100)
+        : 0;
+
+      subjectUnits.push({
+        id: unit.id,
+        name: unit.name,
+        totalTopics,
+        completedTopics: totalCompletedAcrossAllStudents,
+        completionPercentage,
+        students,
+      });
+    }
+
+    result.subjects.push({
+      id: subject.id,
+      name: subject.name,
+      color: subject.color,
+      units: subjectUnits,
+    });
+  }
+
+  return result;
+}
+
+export async function adminGetSyllabusDetail(userId: string): Promise<{
+  subjects: Array<{
+    id: number;
+    name: string;
+    color: string;
+    completionPercentage: number;
+    units: Array<{
+      id: number;
+      name: string;
+      completionPercentage: number;
+      topics: Array<{
+        id: number;
+        name: string;
+        order: number;
+        progress: {
+          status: "not_started" | "in_progress" | "completed";
+          confidence: "low" | "medium" | "high" | null;
+          notes: string | null;
+          completedAt: string | null;
+          lastRevisedAt: string | null;
+        } | null;
+      }>;
+    }>;
+  }>;
+}> {
+  const supabase = createAdminClient();
+  
+  // Get syllabus structure
+  const syllabus = await adminGetSubjectsWithUnitsAndTopics();
+  
+  // Get user's progress
+  const { data: userProgress, error: progressErr } = await supabase
+    .from("user_topic_progress")
+    .select("*")
+    .eq("user_id", userId);
+  if (progressErr) throw progressErr;
+  
+  // Build a map of topicId -> progress
+  const progressMap = new Map<number, UserTopicProgress>();
+  for (const p of userProgress ?? []) {
+    const progress = toCamel<UserTopicProgress>(p);
+    progressMap.set(progress.topicId, progress);
+  }
+
+  const result: {
+    subjects: Array<{
+      id: number;
+      name: string;
+      color: string;
+      completionPercentage: number;
+      units: Array<{
+        id: number;
+        name: string;
+        completionPercentage: number;
+        topics: Array<{
+          id: number;
+          name: string;
+          order: number;
+          progress: {
+            status: "not_started" | "in_progress" | "completed";
+            confidence: "low" | "medium" | "high" | null;
+            notes: string | null;
+            completedAt: string | null;
+            lastRevisedAt: string | null;
+          } | null;
+        }>;
+      }>;
+    }>;
+  } = {
+    subjects: [],
+  };
+
+  for (const subject of syllabus) {
+    const subjectUnits: Array<{
+      id: number;
+      name: string;
+      completionPercentage: number;
+      topics: Array<{
+        id: number;
+        name: string;
+        order: number;
+        progress: {
+          status: "not_started" | "in_progress" | "completed";
+          confidence: "low" | "medium" | "high" | null;
+          notes: string | null;
+          completedAt: string | null;
+          lastRevisedAt: string | null;
+        } | null;
+      }>;
+    }> = [];
+
+    let subjectCompleted = 0;
+    let subjectTotal = 0;
+
+    for (const unit of subject.units) {
+      const unitTopics: Array<{
+        id: number;
+        name: string;
+        order: number;
+        progress: {
+          status: "not_started" | "in_progress" | "completed";
+          confidence: "low" | "medium" | "high" | null;
+          notes: string | null;
+          completedAt: string | null;
+          lastRevisedAt: string | null;
+        } | null;
+      }> = [];
+
+      let unitCompleted = 0;
+      const unitTotal = unit.topics.length;
+
+      for (const topic of unit.topics) {
+        const progress = progressMap.get(topic.id);
+        const topicProgress = progress
+          ? {
+              status: progress.status as "not_started" | "in_progress" | "completed",
+              confidence: progress.confidence as "low" | "medium" | "high" | null,
+              notes: progress.notes,
+              completedAt: progress.completedAt,
+              lastRevisedAt: progress.lastRevisedAt,
+            }
+          : null;
+
+        unitTopics.push({
+          id: topic.id,
+          name: topic.name,
+          order: topic.order,
+          progress: topicProgress,
+        });
+
+        if (topicProgress?.status === "completed") {
+          unitCompleted++;
+          subjectCompleted++;
+        }
+        subjectTotal++;
+      }
+
+      const unitCompletionPercentage = unitTotal > 0 ? Math.round((unitCompleted / unitTotal) * 100) : 0;
+
+      subjectUnits.push({
+        id: unit.id,
+        name: unit.name,
+        completionPercentage: unitCompletionPercentage,
+        topics: unitTopics,
+      });
+    }
+
+    const subjectCompletionPercentage = subjectTotal > 0 ? Math.round((subjectCompleted / subjectTotal) * 100) : 0;
+
+    result.subjects.push({
+      id: subject.id,
+      name: subject.name,
+      color: subject.color,
+      completionPercentage: subjectCompletionPercentage,
+      units: subjectUnits,
+    });
+  }
+
+  return result;
+}
+
 // --- Exam dates (admin CRUD, app-wide) ---
 
 export type ExamDate = { id: number; name: string; examDate: string; displayOrder: number };
